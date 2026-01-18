@@ -84,7 +84,7 @@ jobs:
     - name: Security scan with Bandit
       run: |
         pip install bandit
-        bandit -r . -x .git,__pycache__,venv,assets,*.png -c pyproject.toml || echo "Security scan completed (may have warnings)"
+        bandit -r . -x .git,__pycache__,venv,assets,*.png || echo "Security scan completed with warnings"
 
   quality_check:
     runs-on: ubuntu-latest
