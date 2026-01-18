@@ -1,0 +1,133 @@
+name: Documentation Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check Documentation Links
+      run: |
+        # Verify all markdown files exist and are accessible
+        if [ -f "README.md" ]; then
+          echo "✓ README.md exists"
+        else
+          echo "✗ README.md missing"
+          exit 1
+        fi
+        
+        if [ -f "docs/requirements.md" ]; then
+          echo "✓ docs/requirements.md exists"
+        else
+          echo "✗ docs/requirements.md missing"
+          exit 1
+        fi
+        
+        if [ -f "docs/research.md" ]; then
+          echo "✓ docs/research.md exists"
+        else
+          echo "✗ docs/research.md missing"
+          exit 1
+        fi
+        
+        # Check for broken links in README
+        grep -oP '(?<=\]\().*?(?=\))' README.md | while read -r link; do
+          if [[ "$link" =~ ^http ]]; then
+            echo "Skipping external link: $link"
+          elif [[ "$link" =~ ^assets/ ]]; then
+            if [ -f "$link" ]; then
+              echo "✓ Asset exists: $link"
+            else
+              echo "✗ Asset missing: $link"
+              # Don't exit here since assets are generated files
+            fi
+          else
+            echo "Skipping relative link: $link"
+          fi
+        done
+        
+        echo "✓ Documentation check completed"
+    
+    - name: Validate Requirements
+      run: |
+        if [ -f "requirements.txt" ]; then
+          echo "✓ requirements.txt exists"
+          
+          # Check if all requirements can be parsed
+          while read -r req; do
+            if [[ ! "$req" =~ ^# ]] && [[ -n "$req" ]]; then
+              echo "Checking requirement: $req"
+              # Just validate syntax, don't install
+            fi
+          done < requirements.txt
+        else
+          echo "✗ requirements.txt missing"
+          exit 1
+        fi
+    
+    - name: Check Project Structure
+      run: |
+        # Verify essential files exist
+        files=(
+          "main.py"
+          "module_1_ear.py"
+          "module_2_translator.py"
+          "module_3_judge.py"
+          "README.md"
+          "LICENSE"
+          "requirements.txt"
+          "PROJECT_STRUCTURE.md"
+        )
+        
+        for file in "${files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✓ $file exists"
+          else
+            echo "✗ $file missing"
+            exit 1
+          fi
+        done
+        
+        # Verify directories exist
+        dirs=("docs")
+        for dir in "${dirs[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "✓ $dir directory exists"
+          else
+            echo "✗ $dir directory missing"
+            exit 1
+          fi
+        done
+        
+        echo "✓ Project structure validation completed"
+    
+    - name: Verify Setup Files
+      run: |
+        if [ -f "setup.py" ]; then
+          echo "✓ setup.py exists"
+          
+          # Check if setup.py is syntactically correct
+          python -m py_compile setup.py
+          echo "✓ setup.py compiles successfully"
+        else
+          echo "✗ setup.py missing"
+          exit 1
+        fi
+        
+        if [ -f "__init__.py" ]; then
+          echo "✓ __init__.py exists"
+          
+          # Check if __init__.py is syntactically correct
+          python -m py_compile __init__.py
+          echo "✓ __init__.py compiles successfully"
+        else
+          echo "✗ __init__.py missing"
+          exit 1
+        fi

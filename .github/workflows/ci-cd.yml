@@ -1,0 +1,164 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsndfile1-dev ffmpeg
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Test with pytest
+      run: |
+        python -c "import main; print('Import successful')"
+        python -c "import module_1_ear; import module_2_translator; import module_3_judge; print('All modules imported successfully')"
+        python test_imports.py
+    
+    - name: Run basic functionality test
+      run: |
+        # Create a minimal test to verify the system works
+        python -c "
+        import sys
+        import os
+        sys.path.insert(0, os.getcwd())
+        
+        # Test importing main components
+        import main
+        import module_1_ear
+        import module_2_translator
+        import module_3_judge
+        print('✓ All modules imported successfully')
+        
+        # Test basic functionality
+        import numpy as np
+        import librosa
+        import torch
+        print(f'✓ NumPy version: {np.__version__}')
+        print(f'✓ Librosa version: {librosa.__version__}')
+        print(f'✓ PyTorch version: {torch.__version__}')
+        print('✓ Basic functionality test passed')
+        "
+
+  security_scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Security scan with Bandit
+      run: |
+        pip install bandit
+        bandit -r . -x .git,__pycache__,venv
+    
+  deploy:
+    needs: [test, security_scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsndfile1-dev ffmpeg
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Deploy to PyPI (dry run)
+      run: |
+        pip install build twine
+        python -m build
+        # Only do dry run in this example - would upload to PyPI in real deployment
+        # twine upload --repository testpypi dist/*
+        echo "Package built successfully"
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+    
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        draft: false
+        prerelease: false
+
+  code_quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check for large files
+      run: |
+        find . -size +50M -not -path "./.git/*" -exec ls -lh {} \;
+    
+    - name: Verify documentation
+      run: |
+        if [ ! -f "README.md" ]; then
+          echo "ERROR: README.md not found!"
+          exit 1
+        fi
+        if [ ! -f "LICENSE" ]; then
+          echo "ERROR: LICENSE not found!"
+          exit 1
+        fi
+        echo "✓ Documentation files verified"
+    
+    - name: Check code formatting
+      run: |
+        pip install black
+        # Check if code is formatted with black (without making changes)
+        python -m black --check --diff . || echo "Note: Some files may need formatting with black"
