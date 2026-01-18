@@ -96,7 +96,7 @@ jobs:
   deploy:
     needs: [test, security_scan]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v4
@@ -128,6 +128,16 @@ jobs:
           echo "ERROR: requirements.txt not found in repository root"
           exit 1
         fi
+
+    - name: Verify deploy token
+      run: |
+        if [ -z "$GITHUB_TOKEN" ]; then
+          echo "ERROR: GITHUB_TOKEN is not available in this run. Deploy aborted."
+          echo "This typically happens for workflows triggered by forked PRs or if repository Actions permissions restrict token access."
+          exit 1
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Deploy to PyPI (dry run)
       run: |
