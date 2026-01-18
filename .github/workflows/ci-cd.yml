@@ -129,34 +129,36 @@ jobs:
           exit 1
         fi
 
-    - name: Verify deploy token
+    - name: Check release token and decide
+      id: token_check
       run: |
-        if [ -z "$GITHUB_TOKEN" ]; then
-          echo "ERROR: GITHUB_TOKEN is not available in this run. Deploy aborted."
-          echo "This typically happens for workflows triggered by forked PRs or if repository Actions permissions restrict token access."
-          exit 1
+        if [ -n "${{ secrets.RELEASE_PAT }}" ]; then
+          echo "token_source=RELEASE_PAT" >> $GITHUB_OUTPUT
+          echo "Using RELEASE_PAT for release operations"
+          exit 0
         fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+          echo "token_source=GITHUB_TOKEN" >> $GITHUB_OUTPUT
+          echo "Using GITHUB_TOKEN for release operations"
+          exit 0
+        fi
+        echo "No release token available; skipping release and artifact upload"
+        echo "token_source=none" >> $GITHUB_OUTPUT
 
     - name: Deploy to PyPI (dry run)
+      if: steps.token_check.outputs.token_source != 'none'
       run: |
         pip install build twine
         python -m build
         # Only do dry run in this example - would upload to PyPI in real deployment
         # twine upload --repository testpypi dist/*
         echo "Package built successfully"
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-    
+
     - name: Create Release
+      if: steps.token_check.outputs.token_source != 'none'
       uses: actions/create-release@v1
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.RELEASE_PAT != '' && secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
         tag_name: v${{ github.run_number }}
         release_name: Release v${{ github.run_number }}
         draft: false
