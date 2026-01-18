@@ -111,6 +111,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
+    - name: Verify repository files before build
+      run: |
+        echo "Listing repo root:"
+        ls -la
+        echo "Show requirements.txt existence and head:"
+        if [ -f "requirements.txt" ]; then
+          echo "requirements.txt found"
+          head -n 20 requirements.txt || true
+        else
+          echo "ERROR: requirements.txt not found in repository root"
+          exit 1
+        fi
+
     - name: Deploy to PyPI (dry run)
       run: |
         pip install build twine
