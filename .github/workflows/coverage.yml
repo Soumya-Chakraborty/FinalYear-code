@@ -39,15 +39,16 @@ jobs:
         import module_2_translator
         import module_3_judge
         import test_imports
-        
+
         print('✓ All modules imported successfully')
         print('✓ Basic functionality test completed')
         "
-        
+
         # Run coverage on the main module
         python -m coverage run --source=. -m pytest test_imports.py -v
         python -m coverage report
         python -m coverage html
+        python -m coverage xml -o coverage.xml    # <- add this line so Codecov finds coverage.xml
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

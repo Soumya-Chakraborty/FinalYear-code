@@ -1,50 +1,40 @@
-#!/usr/bin/env python3
-"""
-Test script to verify all imports work correctly
-"""
+# ref: 727ca08c2e05c1b88f998b5f7a2f3abd988134d6
+import importlib
+import pytest
 
-print("Testing imports...")
+MODULES = [
+    "main",
+    "module_1_ear",
+    "module_2_translator",
+    "module_3_judge",
+]
 
-try:
-    import sounddevice as sd
-    print("✅ sounddevice imported successfully")
-except ImportError as e:
-    print(f"❌ Failed to import sounddevice: {e}")
+@pytest.mark.parametrize("module_name", MODULES)
+def test_module_imports(module_name):
+    # Ensure module can be imported
+    mod = importlib.import_module(module_name)
+    assert mod is not None
 
-try:
+def test_main_has_key_functions():
+    mod = importlib.import_module("main")
+    # Check for the presence of the main functions used by the workflows
+    for fn in ("extract_advanced_features", "analyze_performance", "segment_notes"):
+        assert hasattr(mod, fn), f"main.py missing required function: {fn}"
+
+# Also test the original imports to ensure dependencies work
+def test_core_dependencies():
+    """Test that core dependencies can be imported"""
     import numpy as np
-    print("✅ numpy imported successfully")
-except ImportError as e:
-    print(f"❌ Failed to import numpy: {e}")
-
-try:
-    import scipy.io.wavfile as wav
-    print("✅ scipy.io.wavfile imported successfully")
-except ImportError as e:
-    print(f"❌ Failed to import scipy.io.wavfile: {e}")
-
-try:
-    import torch
-    print(f"✅ torch imported successfully (version: {torch.__version__})")
-except ImportError as e:
-    print(f"❌ Failed to import torch: {e}")
-
-try:
-    import torchcrepe
-    print("✅ torchcrepe imported successfully")
-except ImportError as e:
-    print(f"❌ Failed to import torchcrepe: {e}")
-
-try:
     import librosa
-    print(f"✅ librosa imported successfully (version: {librosa.__version__})")
-except ImportError as e:
-    print(f"❌ Failed to import librosa: {e}")
-
-try:
+    import torch
+    import torchcrepe
+    import sounddevice
     import matplotlib.pyplot as plt
-    print("✅ matplotlib.pyplot imported successfully")
-except ImportError as e:
-    print(f"❌ Failed to import matplotlib.pyplot: {e}")
+    import scipy.io.wavfile as wav
 
-print("\nAll imports tested successfully! The original error has been fixed.")
+    # Basic functionality tests
+    arr = np.array([1, 2, 3])
+    assert len(arr) == 3
+
+    # If we reach this point, all imports succeeded
+    assert True
